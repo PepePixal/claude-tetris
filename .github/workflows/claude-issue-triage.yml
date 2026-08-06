@@ -1,0 +1,49 @@
+name: Claude Issue Triage
+
+on:
+  issues:
+    types: [opened, edited]
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Issue Triage
+        id: claude-triage
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+          claude_args: '--allowed-tools "Bash(gh issue view:*),Bash(gh issue edit:*),Bash(gh issue comment:*)"'
+
+          prompt: |
+            You are triaging issue #${{ github.event.issue.number }} in ${{ github.repository }}.
+
+            1. Read the issue with `gh issue view ${{ github.event.issue.number }} --json title,body,labels`.
+
+            2. Classify it against the repo's EXISTING labels only — do not create new labels:
+               bug, enhancement, question, documentation, duplicate, help wanted, good first issue, invalid, wontfix.
+               Add only the labels that clearly apply via `gh issue edit ${{ github.event.issue.number }} --add-label "<label>"`.
+               Do not remove labels a human already set unless they are clearly wrong.
+
+            3. Diagnose the issue using the architecture documented in this repo's CLAUDE.md
+               (board model, piece coords, collide, rotateCW/tryRotate, loop, lockPiece/merge/clearLines/spawn,
+               ghostY, input handler, draw/drawBlock) to identify the likely affected function/module in game.js.
+
+            4. Post a diagnostic comment with `gh issue comment ${{ github.event.issue.number }} --body "..."` that includes:
+               - A short summary of the problem
+               - A root-cause hypothesis
+               - The affected file(s)/function(s)
+               - Suggested next steps for implementing the fix or feature
+
+            5. Do NOT modify any code and do NOT open a pull request — this is triage/analysis only.
