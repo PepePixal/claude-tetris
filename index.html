@@ -39,6 +39,23 @@
           <canvas id="next-canvas" width="120" height="120"></canvas>
         </div>
 
+        <div class="panel-section">
+          <span class="label">ENERGÍA</span>
+          <div class="energy-bar">
+            <div class="energy-fill" id="energy-fill"></div>
+          </div>
+        </div>
+
+        <div class="panel-section hidden" id="hold-panel">
+          <span class="label">HOLD</span>
+          <canvas id="hold-canvas" width="120" height="120"></canvas>
+        </div>
+
+        <div class="panel-section hidden" id="queue-panel">
+          <span class="label">COLA</span>
+          <canvas id="queue-canvas" width="90" height="450"></canvas>
+        </div>
+
         <div class="panel-section controls">
           <span class="label">CONTROLS</span>
           <ul>
@@ -47,6 +64,8 @@
             <li><kbd>↓</kbd> bajar</li>
             <li><kbd>Space</kbd> caída</li>
             <li><kbd>P</kbd> pausa</li>
+            <li><kbd>E</kbd> habilidad</li>
+            <li><kbd>C</kbd> hold</li>
           </ul>
         </div>
       </aside>
@@ -57,6 +76,19 @@
         <p id="overlay-title">GAME OVER</p>
         <p id="overlay-score"></p>
         <button id="restart-btn">Reiniciar</button>
+      </div>
+    </div>
+
+    <div id="ability-overlay" class="overlay hidden">
+      <div class="overlay-box ability-box">
+        <p class="ability-title">ELEGÍ UNA HABILIDAD</p>
+        <ul class="ability-list">
+          <li><button class="ability-btn" data-ability="1"><kbd>1</kbd> Ver siguientes 5 piezas</button></li>
+          <li><button class="ability-btn" data-ability="2"><kbd>2</kbd> Cambiar pieza actual</button></li>
+          <li><button class="ability-btn" data-ability="3"><kbd>3</kbd> Ralentizar tiempo (10s)</button></li>
+          <li><button class="ability-btn" data-ability="4"><kbd>4</kbd> Deshacer última colocación</button></li>
+          <li><button class="ability-btn" data-ability="5"><kbd>5</kbd> Reservar pieza (hold)</button></li>
+        </ul>
       </div>
     </div>
   </div>

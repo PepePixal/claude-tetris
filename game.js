@@ -29,6 +29,8 @@ const PIECES = [
 ];
 
 const LINE_SCORES = [0, 100, 300, 500, 800];
+const QUEUE_PREVIEW = 5;
+const ENERGY_MAX = 100;
 
 const GRID_COLORS = { dark: '#22222e', light: '#dde1f0' };
 const THEME_KEY = 'tetris-theme';
@@ -45,9 +47,21 @@ const overlayTitle = document.getElementById('overlay-title');
 const overlayScore = document.getElementById('overlay-score');
 const restartBtn = document.getElementById('restart-btn');
 const themeToggle = document.getElementById('theme-toggle');
+const energyFill = document.getElementById('energy-fill');
+const abilityOverlay = document.getElementById('ability-overlay');
+const abilityButtons = document.querySelectorAll('.ability-btn');
+const queuePanel = document.getElementById('queue-panel');
+const queueCanvas = document.getElementById('queue-canvas');
+const queueCtx = queueCanvas.getContext('2d');
+const holdPanel = document.getElementById('hold-panel');
+const holdCanvas = document.getElementById('hold-canvas');
+const holdCtx = holdCanvas.getContext('2d');
 
 let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
 let theme, gridColor;
+// Ability system state
+let energy, pieceQueue, showQueue, holdPiece, holdUnlocked, holdUsed;
+let lastBoardSnapshot, abilityMenuOpen, slowTimeoutId;
 
 function applyTheme(name) {
   theme = name;
@@ -65,6 +79,10 @@ function randomPiece() {
   const type = Math.floor(Math.random() * 8) + 1;
   const shape = PIECES[type].map(row => [...row]);
   return { type, shape, x: Math.floor(COLS / 2) - Math.floor(shape[0].length / 2), y: 0 };
+}
+
+function fillQueue() {
+  while (pieceQueue.length < QUEUE_PREVIEW) pieceQueue.push(randomPiece());
 }
 
 function collide(shape, ox, oy) {
@@ -123,7 +141,9 @@ function clearLines() {
     score += (LINE_SCORES[cleared] || 0) * level;
     level = Math.floor(lines / 10) + 1;
     dropInterval = Math.max(100, 1000 - (level - 1) * 90);
+    energy = Math.min(ENERGY_MAX, energy + cleared * 10);
     updateHUD();
+    updateEnergyBar();
   }
 }
 
@@ -151,6 +171,8 @@ function softDrop() {
 }
 
 function lockPiece() {
+  // Snapshot the board before merging so the "undo" ability can restore it.
+  lastBoardSnapshot = board.map(row => [...row]);
   merge();
   clearLines();
   spawn();
@@ -158,17 +180,24 @@ function lockPiece() {
 
 function spawn() {
   current = next;
-  next = randomPiece();
+  holdUsed = false;
+  fillQueue();
+  next = pieceQueue.shift();
   if (collide(current.shape, current.x, current.y)) {
     endGame();
   }
   drawNext();
+  if (showQueue) drawQueue();
 }
 
 function updateHUD() {
   scoreEl.textContent = score.toLocaleString();
   linesEl.textContent = lines;
   levelEl.textContent = level;
+}
+
+function updateEnergyBar() {
+  energyFill.style.width = energy + '%';
 }
 
 function drawBlock(context, x, y, colorIndex, size, alpha) {
@@ -233,6 +262,132 @@ function drawNext() {
       drawBlock(nextCtx, offX + c, offY + r, shape[r][c], NB);
 }
 
+function drawQueue() {
+  const QB = 20;
+  const slotRows = 4;
+  queueCtx.clearRect(0, 0, queueCanvas.width, queueCanvas.height);
+  for (let i = 0; i < QUEUE_PREVIEW && i < pieceQueue.length; i++) {
+    const shape = pieceQueue[i].shape;
+    const offX = Math.floor((4 - shape[0].length) / 2);
+    const offY = i * slotRows + Math.floor((slotRows - shape.length) / 2);
+    for (let r = 0; r < shape.length; r++)
+      for (let c = 0; c < shape[r].length; c++)
+        drawBlock(queueCtx, offX + c, offY + r, shape[r][c], QB);
+  }
+}
+
+function drawHold() {
+  holdCtx.clearRect(0, 0, holdCanvas.width, holdCanvas.height);
+  if (holdPiece === null) return;
+  const HB = 30;
+  const shape = PIECES[holdPiece];
+  const offX = Math.floor((4 - shape[0].length) / 2);
+  const offY = Math.floor((4 - shape.length) / 2);
+  for (let r = 0; r < shape.length; r++)
+    for (let c = 0; c < shape[r].length; c++)
+      drawBlock(holdCtx, offX + c, offY + r, shape[r][c], HB);
+}
+
+// ---- Ability system ----
+
+function openAbilityMenu() {
+  if (energy < ENERGY_MAX || gameOver || paused || abilityMenuOpen) return;
+  abilityMenuOpen = true;
+  cancelAnimationFrame(animId);
+  abilityOverlay.classList.remove('hidden');
+}
+
+function closeAbilityMenu() {
+  abilityMenuOpen = false;
+  abilityOverlay.classList.add('hidden');
+  if (!paused && !gameOver) {
+    lastTime = performance.now();
+    animId = requestAnimationFrame(loop);
+  }
+}
+
+function holdSwap() {
+  if (!holdUnlocked || holdUsed || gameOver || paused) return;
+  holdUsed = true;
+  const curType = current.type;
+  if (holdPiece === null) {
+    holdPiece = curType;
+    current = next;
+    fillQueue();
+    next = pieceQueue.shift();
+    drawNext();
+    if (showQueue) drawQueue();
+  } else {
+    const swapType = holdPiece;
+    holdPiece = curType;
+    const shape = PIECES[swapType].map(row => [...row]);
+    current = { type: swapType, shape, x: Math.floor(COLS / 2) - Math.floor(shape[0].length / 2), y: 0 };
+  }
+  if (collide(current.shape, current.x, current.y)) endGame();
+  drawHold();
+}
+
+function activateAbility(id) {
+  if (!abilityMenuOpen) return;
+  switch (id) {
+    case 1:
+      // Reveal the extended piece-queue preview panel for the rest of the game.
+      showQueue = true;
+      queuePanel.classList.remove('hidden');
+      drawQueue();
+      break;
+    case 2: {
+      // Swap the current piece for a different random type from the pool.
+      let type;
+      do {
+        type = Math.floor(Math.random() * 8) + 1;
+      } while (type === current.type);
+      const shape = PIECES[type].map(row => [...row]);
+      current.type = type;
+      current.shape = shape;
+      current.x = Math.floor(COLS / 2) - Math.floor(shape[0].length / 2);
+      current.y = 0;
+      // The swapped shape may not fit at spawn position against locked blocks.
+      if (collide(current.shape, current.x, current.y)) endGame();
+      break;
+    }
+    case 3:
+      // Double the drop interval for 10 seconds, then restore it for the current level.
+      // Guard against re-activating mid-effect stacking the multiplier further.
+      if (slowTimeoutId) {
+        clearTimeout(slowTimeoutId);
+      } else {
+        dropInterval *= 2;
+      }
+      slowTimeoutId = setTimeout(() => {
+        dropInterval = Math.max(100, 1000 - (level - 1) * 90);
+        slowTimeoutId = null;
+      }, 10000);
+      break;
+    case 4:
+      // Restore the board to the state right before the last piece was locked.
+      // Note: score/lines/level/dropInterval are intentionally NOT reverted (kept simple);
+      // only the board grid is rolled back.
+      if (lastBoardSnapshot) {
+        board = lastBoardSnapshot.map(row => [...row]);
+        lastBoardSnapshot = null;
+        // The already-spawned current piece was validated against the newer
+        // (post-clear) board; re-check it against the restored one.
+        if (collide(current.shape, current.x, current.y)) endGame();
+      }
+      break;
+    case 5:
+      // Unlock the hold feature (dedicated key C) and hold the current piece now.
+      holdUnlocked = true;
+      holdPanel.classList.remove('hidden');
+      holdSwap();
+      break;
+  }
+  energy = 0;
+  updateEnergyBar();
+  closeAbilityMenu();
+}
+
 function endGame() {
   gameOver = true;
   cancelAnimationFrame(animId);
@@ -281,16 +436,46 @@ function init() {
   dropInterval = 1000;
   dropAccum = 0;
   lastTime = performance.now();
-  next = randomPiece();
+  energy = 0;
+  pieceQueue = [];
+  showQueue = false;
+  holdPiece = null;
+  holdUnlocked = false;
+  holdUsed = false;
+  lastBoardSnapshot = null;
+  abilityMenuOpen = false;
+  if (slowTimeoutId) {
+    clearTimeout(slowTimeoutId);
+    slowTimeoutId = null;
+  }
+  fillQueue();
+  next = pieceQueue.shift();
   spawn();
   updateHUD();
+  updateEnergyBar();
+  queuePanel.classList.add('hidden');
+  holdPanel.classList.add('hidden');
+  drawHold();
   overlay.classList.add('hidden');
+  abilityOverlay.classList.add('hidden');
   cancelAnimationFrame(animId);
   animId = requestAnimationFrame(loop);
 }
 
 document.addEventListener('keydown', e => {
+  if (abilityMenuOpen) {
+    switch (e.code) {
+      case 'Digit1': case 'Numpad1': activateAbility(1); break;
+      case 'Digit2': case 'Numpad2': activateAbility(2); break;
+      case 'Digit3': case 'Numpad3': activateAbility(3); break;
+      case 'Digit4': case 'Numpad4': activateAbility(4); break;
+      case 'Digit5': case 'Numpad5': activateAbility(5); break;
+      case 'Escape': closeAbilityMenu(); break;
+    }
+    return;
+  }
   if (e.code === 'KeyP') { togglePause(); return; }
+  if (e.code === 'KeyE') { openAbilityMenu(); return; }
   if (paused || gameOver) return;
   switch (e.code) {
     case 'ArrowLeft':
@@ -310,11 +495,20 @@ document.addEventListener('keydown', e => {
       e.preventDefault();
       hardDrop();
       break;
+    case 'KeyC':
+      holdSwap();
+      break;
   }
   updateHUD();
 });
 
 restartBtn.addEventListener('click', init);
+
+abilityButtons.forEach(btn => {
+  btn.addEventListener('click', () => {
+    activateAbility(Number(btn.dataset.ability));
+  });
+});
 
 themeToggle.addEventListener('change', () => {
   applyTheme(themeToggle.checked ? 'light' : 'dark');
