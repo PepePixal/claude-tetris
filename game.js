@@ -14,6 +14,11 @@ const COLORS = [
   '#8b0000', // J - dark red
   '#ffb74d', // L - orange
   '#9e9e9e', // N - tuerca gris
+  '#f06292', // + - pink (cross pentomino, rare)
+  '#64b5f6', // U - blue (pentomino, rare)
+  '#aed581', // Y - light green (pentomino, rare)
+  '#ff8a65', // hollow 3x3 - deep orange (rare, hard)
+  '#fff59d', // 1x1 single - light yellow (Tetris reward only)
 ];
 
 const PIECES = [
@@ -26,7 +31,21 @@ const PIECES = [
   [[6,0,0],[6,6,6],[0,0,0]],                  // J
   [[0,0,7],[7,7,7],[0,0,0]],                  // L
   [[8,8,8],[8,0,8],[8,8,8]],                  // N - tuerca (nut)
+  [[0,0,0,0,0],[0,0,9,0,0],[0,9,9,9,0],[0,0,9,0,0],[0,0,0,0,0]],       // + - cross pentomino (rare)
+  [[0,0,0,0,0],[0,10,0,10,0],[0,10,10,10,0],[0,0,0,0,0],[0,0,0,0,0]],  // U pentomino (rare)
+  [[0,0,0,0,0],[0,0,11,0,0],[0,11,11,0,0],[0,0,11,0,0],[0,0,11,0,0]],  // Y pentomino (rare)
+  [[0,0,0,0,0],[0,12,12,12,0],[0,12,0,12,0],[0,12,12,12,0],[0,0,0,0,0]], // hollow 3x3 frame (rare, hard)
+  [[0,0,0,0,0],[0,0,0,0,0],[0,0,13,0,0],[0,0,0,0,0],[0,0,0,0,0]],      // 1x1 single (Tetris reward only)
 ];
+
+// Standard 4x4-or-smaller pieces used as the common spawn pool.
+const STANDARD_PIECE_TYPES = [1, 2, 3, 4, 5, 6, 7, 8];
+// Rare 5x5 pentomino/challenge pieces mixed in at low probability.
+const SPECIAL_PIECE_TYPES = [9, 10, 11, 12];
+// Chance (0-1) that a spawned piece is drawn from SPECIAL_PIECE_TYPES instead of STANDARD_PIECE_TYPES.
+const SPECIAL_PIECE_CHANCE = 0.1;
+// Piece type reserved as the reward for clearing 4 lines at once (never spawns randomly).
+const REWARD_PIECE_TYPE = 13;
 
 const LINE_SCORES = [0, 100, 300, 500, 800];
 
@@ -48,6 +67,7 @@ const themeToggle = document.getElementById('theme-toggle');
 
 let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
 let theme, gridColor;
+let rewardPending;
 
 function applyTheme(name) {
   theme = name;
@@ -62,7 +82,16 @@ function createBoard() {
 }
 
 function randomPiece() {
-  const type = Math.floor(Math.random() * 8) + 1;
+  const pool = Math.random() < SPECIAL_PIECE_CHANCE ? SPECIAL_PIECE_TYPES : STANDARD_PIECE_TYPES;
+  const type = pool[Math.floor(Math.random() * pool.length)];
+  return pieceFromType(type);
+}
+
+function rewardPiece() {
+  return pieceFromType(REWARD_PIECE_TYPE);
+}
+
+function pieceFromType(type) {
   const shape = PIECES[type].map(row => [...row]);
   return { type, shape, x: Math.floor(COLS / 2) - Math.floor(shape[0].length / 2), y: 0 };
 }
@@ -123,6 +152,7 @@ function clearLines() {
     score += (LINE_SCORES[cleared] || 0) * level;
     level = Math.floor(lines / 10) + 1;
     dropInterval = Math.max(100, 1000 - (level - 1) * 90);
+    if (cleared === 4) rewardPending = true;
     updateHUD();
   }
 }
@@ -158,7 +188,8 @@ function lockPiece() {
 
 function spawn() {
   current = next;
-  next = randomPiece();
+  next = rewardPending ? rewardPiece() : randomPiece();
+  rewardPending = false;
   if (collide(current.shape, current.x, current.y)) {
     endGame();
   }
@@ -222,12 +253,14 @@ function draw() {
       drawBlock(ctx, current.x + c, current.y + r, current.shape[r][c], BLOCK);
 }
 
+const NEXT_BOX_CELLS = 5; // must fit the widest/tallest piece (pentominoes are 5x5)
+
 function drawNext() {
-  const NB = 30;
+  const NB = nextCanvas.width / NEXT_BOX_CELLS;
   nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
   const shape = next.shape;
-  const offX = Math.floor((4 - shape[0].length) / 2);
-  const offY = Math.floor((4 - shape.length) / 2);
+  const offX = Math.floor((NEXT_BOX_CELLS - shape[0].length) / 2);
+  const offY = Math.floor((NEXT_BOX_CELLS - shape.length) / 2);
   for (let r = 0; r < shape.length; r++)
     for (let c = 0; c < shape[r].length; c++)
       drawBlock(nextCtx, offX + c, offY + r, shape[r][c], NB);
@@ -278,6 +311,7 @@ function init() {
   level = 1;
   paused = false;
   gameOver = false;
+  rewardPending = false;
   dropInterval = 1000;
   dropAccum = 0;
   lastTime = performance.now();
