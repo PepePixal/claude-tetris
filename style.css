@@ -112,6 +112,21 @@ body {
   letter-spacing: 1px;
 }
 
+#mode-select {
+  background: var(--kbd-bg);
+  border: 1px solid var(--kbd-border);
+  color: var(--text-color);
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.value.small {
+  font-size: 14px;
+}
+
 #next-canvas {
   display: block;
   border: 1px solid var(--board-border);

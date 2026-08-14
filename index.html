@@ -22,6 +22,24 @@
         </div>
 
         <div class="panel-section">
+          <span class="label">MODO</span>
+          <select id="mode-select">
+            <option value="classic">Clásico</option>
+            <option value="challenge40">40 líneas en 2 min</option>
+            <option value="garbage">Basura ascendente</option>
+            <option value="fixedBlocks">Bloques fijos</option>
+            <option value="invisible">Piezas invisibles</option>
+            <option value="reverseRotation">Rotación inversa</option>
+          </select>
+        </div>
+
+        <div class="panel-section" id="challenge-info-section" hidden>
+          <span class="label">OBJETIVO</span>
+          <span class="value" id="challenge-timer">2:00</span>
+          <span class="value small" id="challenge-progress">0/40</span>
+        </div>
+
+        <div class="panel-section">
           <span class="label">SCORE</span>
           <span class="value" id="score">0</span>
         </div>
