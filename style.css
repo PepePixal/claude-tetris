@@ -119,6 +119,18 @@ body {
   border-radius: 4px;
 }
 
+/* ---- Power-up indicator ---- */
+#powerup-indicator.active {
+  color: #fff176;
+  text-shadow: 0 0 8px rgba(255, 241, 118, 0.8);
+}
+
+/* Freeze power-up: tint the board while the drop timer is paused. */
+#board.frozen {
+  border-color: #64c8ff;
+  box-shadow: 0 0 40px var(--board-shadow), inset 0 0 30px rgba(100, 200, 255, 0.4);
+}
+
 /* ---- Toggle de tema ---- */
 .theme-switch {
   position: relative;
