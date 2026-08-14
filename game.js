@@ -45,9 +45,11 @@ const overlayTitle = document.getElementById('overlay-title');
 const overlayScore = document.getElementById('overlay-score');
 const restartBtn = document.getElementById('restart-btn');
 const themeToggle = document.getElementById('theme-toggle');
+const feedbackEl = document.getElementById('feedback');
 
 let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
 let theme, gridColor;
+let comboCount, backToBackTetris, lastMoveWasRotation;
 
 function applyTheme(name) {
   theme = name;
@@ -96,6 +98,7 @@ function tryRotate() {
     if (!collide(rotated, current.x + kick, current.y)) {
       current.shape = rotated;
       current.x += kick;
+      lastMoveWasRotation = true;
       return;
     }
   }
@@ -108,7 +111,29 @@ function merge() {
         board[current.y + r][current.x + c] = current.shape[r][c];
 }
 
-function clearLines() {
+// Standard 3-corner heuristic: current piece is a T, its last move was a
+// rotation (not a plain drop/slide), and at least 3 of the 4 corners of its
+// 3x3 bounding box are occupied (by locked blocks or walls/floor).
+function isTSpinCorner() {
+  if (!current || current.type !== 3 || !lastMoveWasRotation) return false;
+  const corners = [[0, 0], [0, 2], [2, 0], [2, 2]];
+  let occupied = 0;
+  for (const [r, c] of corners) {
+    const bx = current.x + c;
+    const by = current.y + r;
+    if (bx < 0 || bx >= COLS || by < 0 || by >= ROWS || board[by][bx]) occupied++;
+  }
+  return occupied >= 3;
+}
+
+function showFeedback(text) {
+  feedbackEl.textContent = text;
+  feedbackEl.classList.remove('show');
+  void feedbackEl.offsetWidth; // force reflow so the animation restarts
+  feedbackEl.classList.add('show');
+}
+
+function clearLines(tSpin) {
   let cleared = 0;
   for (let r = ROWS - 1; r >= 0; r--) {
     if (board[r].every(v => v !== 0)) {
@@ -118,13 +143,54 @@ function clearLines() {
       r++;
     }
   }
-  if (cleared) {
-    lines += cleared;
-    score += (LINE_SCORES[cleared] || 0) * level;
-    level = Math.floor(lines / 10) + 1;
-    dropInterval = Math.max(100, 1000 - (level - 1) * 90);
-    updateHUD();
+
+  if (!cleared) {
+    comboCount = 0;
+    return;
   }
+
+  comboCount++;
+  lines += cleared;
+
+  const messages = [];
+  let gained = (LINE_SCORES[cleared] || 0) * level;
+
+  if (tSpin) {
+    const tSpinBonus = 400 * level;
+    gained += tSpinBonus;
+    messages.push(`GIRO EN T +${tSpinBonus}`);
+  }
+
+  const isTetris = cleared === 4;
+  if (isTetris) {
+    if (backToBackTetris) {
+      const b2bBonus = Math.floor(gained * 0.5);
+      gained += b2bBonus;
+      messages.push(`ENCADENADO +${b2bBonus}`);
+    }
+    backToBackTetris = true;
+  } else {
+    backToBackTetris = false;
+  }
+
+  if (comboCount > 1) {
+    const comboBonus = gained * (comboCount - 1);
+    gained += comboBonus;
+    messages.push(`COMBO x${comboCount}`);
+  }
+
+  score += gained;
+
+  if (board.every(row => row.every(v => v === 0))) {
+    const pcBonus = 1000 * level;
+    score += pcBonus;
+    messages.push(`LIMPIEZA PERFECTA +${pcBonus}`);
+  }
+
+  level = Math.floor(lines / 10) + 1;
+  dropInterval = Math.max(100, 1000 - (level - 1) * 90);
+  updateHUD();
+  if (messages.length) showFeedback(messages.join('\n'));
 }
 
 function ghostY() {
@@ -143,6 +209,7 @@ function hardDrop() {
 function softDrop() {
   if (!collide(current.shape, current.x, current.y + 1)) {
     current.y++;
+    lastMoveWasRotation = false;
     score += 1;
     updateHUD();
   } else {
@@ -151,14 +218,16 @@ function softDrop() {
 }
 
 function lockPiece() {
+  const tSpin = isTSpinCorner();
   merge();
-  clearLines();
+  clearLines(tSpin);
   spawn();
 }
 
 function spawn() {
   current = next;
   next = randomPiece();
+  lastMoveWasRotation = false;
   if (collide(current.shape, current.x, current.y)) {
     endGame();
   }
@@ -263,6 +332,7 @@ function loop(ts) {
     dropAccum = 0;
     if (!collide(current.shape, current.x, current.y + 1)) {
       current.y++;
+      lastMoveWasRotation = false;
     } else {
       lockPiece();
     }
@@ -280,6 +350,8 @@ function init() {
   gameOver = false;
   dropInterval = 1000;
   dropAccum = 0;
+  comboCount = 0;
+  backToBackTetris = false;
   lastTime = performance.now();
   next = randomPiece();
   spawn();
@@ -294,10 +366,10 @@ document.addEventListener('keydown', e => {
   if (paused || gameOver) return;
   switch (e.code) {
     case 'ArrowLeft':
-      if (!collide(current.shape, current.x - 1, current.y)) current.x--;
+      if (!collide(current.shape, current.x - 1, current.y)) { current.x--; lastMoveWasRotation = false; }
       break;
     case 'ArrowRight':
-      if (!collide(current.shape, current.x + 1, current.y)) current.x++;
+      if (!collide(current.shape, current.x + 1, current.y)) { current.x++; lastMoveWasRotation = false; }
       break;
     case 'ArrowDown':
       softDrop();

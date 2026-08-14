@@ -82,6 +82,41 @@ body {
   box-shadow: 0 0 40px var(--board-shadow);
 }
 
+.board-wrap {
+  position: relative;
+}
+
+/* ---- Feedback flotante (combo / T-spin / B2B / perfect clear) ---- */
+.feedback {
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  font-family: 'Courier New', Courier, monospace;
+  font-weight: 800;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--accent);
+  text-shadow: 0 0 12px var(--accent);
+  text-align: center;
+  opacity: 0;
+  white-space: pre-line;
+  width: 90%;
+}
+
+.feedback.show {
+  animation: feedback-pop 1.1s ease-out forwards;
+}
+
+@keyframes feedback-pop {
+  0% { opacity: 0; transform: translate(-50%, -40%) scale(0.8); }
+  15% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+  30% { transform: translate(-50%, -50%) scale(1); }
+  75% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -70%) scale(1); }
+}
+
 /* ---- Panel lateral ---- */
 .panel {
   width: 160px;
