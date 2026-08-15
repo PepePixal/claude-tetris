@@ -54,9 +54,45 @@
 
     <div id="overlay" class="overlay hidden">
       <div class="overlay-box">
-        <p id="overlay-title">GAME OVER</p>
+        <p id="overlay-title" class="overlay-title">GAME OVER</p>
         <p id="overlay-score"></p>
-        <button id="restart-btn">Reiniciar</button>
+        <button id="restart-btn" class="btn">Reiniciar</button>
+      </div>
+    </div>
+
+    <div id="pause-overlay" class="overlay hidden">
+      <div class="overlay-box pause-menu">
+        <p class="overlay-title">PAUSA</p>
+        <nav id="pause-nav" class="pause-nav">
+          <button class="btn pause-menu-item" data-action="resume">Reanudar</button>
+          <button class="btn pause-menu-item" data-action="restart">Reiniciar</button>
+          <button class="btn btn-secondary pause-menu-item" data-action="controls">Ver controles</button>
+          <div class="panel-section">
+            <span class="label">NIVEL INICIAL</span>
+            <select id="start-level-select" class="pause-menu-item">
+              <option value="1">Nivel 1</option>
+              <option value="2">Nivel 2</option>
+              <option value="3">Nivel 3</option>
+              <option value="4">Nivel 4</option>
+              <option value="5">Nivel 5</option>
+              <option value="6">Nivel 6</option>
+              <option value="7">Nivel 7</option>
+              <option value="8">Nivel 8</option>
+              <option value="9">Nivel 9</option>
+              <option value="10">Nivel 10</option>
+            </select>
+          </div>
+        </nav>
+        <div id="pause-controls-panel" class="controls hidden">
+          <ul>
+            <li><kbd>←</kbd><kbd>→</kbd> mover</li>
+            <li><kbd>↑</kbd> rotar</li>
+            <li><kbd>↓</kbd> bajar</li>
+            <li><kbd>Space</kbd> caída</li>
+            <li><kbd>P</kbd> pausa</li>
+          </ul>
+          <button class="btn btn-secondary pause-menu-item" data-action="back">Volver</button>
+        </div>
       </div>
     </div>
   </div>

@@ -45,9 +45,17 @@ const overlayTitle = document.getElementById('overlay-title');
 const overlayScore = document.getElementById('overlay-score');
 const restartBtn = document.getElementById('restart-btn');
 const themeToggle = document.getElementById('theme-toggle');
+const pauseOverlay = document.getElementById('pause-overlay');
+const pauseNav = document.getElementById('pause-nav');
+const pauseControlsPanel = document.getElementById('pause-controls-panel');
+const startLevelSelect = document.getElementById('start-level-select');
 
 let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
 let theme, gridColor;
+let menuOpen = false;   // true while the pause menu is open
+let startLevel = 1;     // level applied to the NEXT init() call, persisted
+let menuFocusIndex = 0; // index of the currently focused menu item (arrow-key nav)
+const START_LEVEL_KEY = 'tetris-start-level';
 
 function applyTheme(name) {
   theme = name;
@@ -241,17 +249,88 @@ function endGame() {
   overlay.classList.remove('hidden');
 }
 
+function getVisibleMenuItems() {
+  const container = pauseControlsPanel.classList.contains('hidden') ? pauseNav : pauseControlsPanel;
+  return Array.from(container.querySelectorAll('.pause-menu-item'));
+}
+
+function openPauseMenu() {
+  paused = true;
+  menuOpen = true;
+  cancelAnimationFrame(animId);
+  showControlsSubview(false);
+  pauseOverlay.classList.remove('hidden');
+  menuFocusIndex = 0;
+  const items = getVisibleMenuItems();
+  if (items[menuFocusIndex]) items[menuFocusIndex].focus();
+}
+
+function closePauseMenu() {
+  menuOpen = false;
+  pauseOverlay.classList.add('hidden');
+}
+
+function showControlsSubview(show) {
+  if (show) {
+    pauseNav.classList.add('hidden');
+    pauseControlsPanel.classList.remove('hidden');
+  } else {
+    pauseControlsPanel.classList.add('hidden');
+    pauseNav.classList.remove('hidden');
+  }
+  menuFocusIndex = 0;
+  const items = getVisibleMenuItems();
+  if (items[menuFocusIndex]) items[menuFocusIndex].focus();
+}
+
+function setStartLevel(n) {
+  startLevel = n;
+  localStorage.setItem(START_LEVEL_KEY, String(n));
+}
+
+function moveMenuFocus(delta) {
+  const items = getVisibleMenuItems();
+  if (!items.length) return;
+  const activeIndex = items.indexOf(document.activeElement);
+  const base = activeIndex === -1 ? menuFocusIndex : activeIndex;
+  menuFocusIndex = (base + delta + items.length) % items.length;
+  items[menuFocusIndex].focus();
+}
+
+function activateFocusedMenuItem() {
+  const active = document.activeElement;
+  const action = active && active.dataset ? active.dataset.action : undefined;
+  if (!action) return;
+  handleMenuAction(action);
+}
+
+function handleMenuAction(action) {
+  switch (action) {
+    case 'resume':
+      togglePause();
+      break;
+    case 'restart':
+      closePauseMenu();
+      init();
+      break;
+    case 'controls':
+      showControlsSubview(true);
+      break;
+    case 'back':
+      showControlsSubview(false);
+      break;
+  }
+}
+
 function togglePause() {
   if (gameOver) return;
   paused = !paused;
   if (!paused) {
+    closePauseMenu();
     lastTime = performance.now();
     loop(lastTime);
   } else {
-    cancelAnimationFrame(animId);
-    overlayTitle.textContent = 'PAUSA';
-    overlayScore.textContent = '';
-    overlay.classList.remove('hidden');
+    openPauseMenu();
   }
 }
 
@@ -275,22 +354,56 @@ function init() {
   board = createBoard();
   score = 0;
   lines = 0;
-  level = 1;
+  level = startLevel;
   paused = false;
   gameOver = false;
-  dropInterval = 1000;
+  menuOpen = false;
+  dropInterval = Math.max(100, 1000 - (level - 1) * 90);
   dropAccum = 0;
   lastTime = performance.now();
   next = randomPiece();
   spawn();
   updateHUD();
   overlay.classList.add('hidden');
+  pauseOverlay.classList.add('hidden');
   cancelAnimationFrame(animId);
   animId = requestAnimationFrame(loop);
 }
 
 document.addEventListener('keydown', e => {
-  if (e.code === 'KeyP') { togglePause(); return; }
+  if (e.code === 'KeyP' || e.code === 'Escape') {
+    if (menuOpen) {
+      if (e.code === 'Escape' && !pauseControlsPanel.classList.contains('hidden')) {
+        showControlsSubview(false);
+      } else {
+        togglePause();
+      }
+    } else {
+      togglePause();
+    }
+    return;
+  }
+  if (menuOpen) {
+    // Let the start-level <select> use native arrow/Enter/Space behavior
+    // when it has focus, instead of hijacking menu navigation.
+    if (document.activeElement === startLevelSelect) return;
+    switch (e.code) {
+      case 'ArrowUp':
+        e.preventDefault();
+        moveMenuFocus(-1);
+        break;
+      case 'ArrowDown':
+        e.preventDefault();
+        moveMenuFocus(1);
+        break;
+      case 'Enter':
+      case 'Space':
+        e.preventDefault();
+        activateFocusedMenuItem();
+        break;
+    }
+    return;
+  }
   if (paused || gameOver) return;
   switch (e.code) {
     case 'ArrowLeft':
@@ -320,5 +433,15 @@ themeToggle.addEventListener('change', () => {
   applyTheme(themeToggle.checked ? 'light' : 'dark');
 });
 
+document.querySelectorAll('.pause-menu-item[data-action]').forEach(el => {
+  el.addEventListener('click', () => handleMenuAction(el.dataset.action));
+});
+
+startLevelSelect.addEventListener('change', function () {
+  setStartLevel(Number(this.value));
+});
+
 applyTheme(localStorage.getItem(THEME_KEY) === 'light' ? 'light' : 'dark');
+startLevel = Number(localStorage.getItem(START_LEVEL_KEY)) || 1;
+startLevelSelect.value = String(startLevel);
 init();

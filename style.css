@@ -209,7 +209,7 @@ kbd {
   align-items: center;
 }
 
-#overlay-title {
+.overlay-title {
   font-size: 28px;
   font-weight: 800;
   letter-spacing: 4px;
@@ -222,7 +222,7 @@ kbd {
   color: var(--accent);
 }
 
-#restart-btn {
+.btn {
   margin-top: 8px;
   background: var(--accent);
   color: var(--accent-contrast);
@@ -236,6 +236,45 @@ kbd {
   transition: background 0.15s;
 }
 
-#restart-btn:hover {
+.btn:hover {
   background: var(--accent-hover);
+}
+
+.btn-secondary {
+  background: transparent;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+}
+
+.btn-secondary:hover {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+/* ---- Pause menu ---- */
+.pause-menu {
+  min-width: 220px;
+}
+
+.pause-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.pause-menu-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+#pause-controls-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.hidden {
+  display: none;
 }
