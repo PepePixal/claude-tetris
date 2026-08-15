@@ -185,6 +185,16 @@ kbd {
   color: var(--kbd-color);
 }
 
+#skin-select {
+  background: var(--kbd-bg);
+  border: 1px solid var(--kbd-border);
+  color: var(--text-color);
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-family: inherit;
+}
+
 /* ---- Overlay ---- */
 .overlay {
   position: absolute;
