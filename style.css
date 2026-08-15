@@ -239,3 +239,65 @@ kbd {
 #restart-btn:hover {
   background: var(--accent-hover);
 }
+
+/* ---- Botones compartidos ---- */
+.btn {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border: none;
+  border-radius: 6px;
+  padding: 10px 16px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  transition: background 0.15s;
+  cursor: pointer;
+}
+
+.btn:hover {
+  background: var(--accent-hover);
+}
+
+.btn-secondary {
+  background: transparent;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+}
+
+/* ---- Marcador local ---- */
+.leaderboard {
+  list-style: decimal-leading-zero inside;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 12px;
+  margin: 0;
+  padding: 0;
+}
+
+.leaderboard li.current {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+#name-entry-form {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+#name-entry-form.hidden {
+  display: none;
+}
+
+#name-input {
+  width: 60px;
+  text-transform: uppercase;
+  text-align: center;
+  background: var(--kbd-bg);
+  border: 1px solid var(--kbd-border);
+  color: var(--text-color);
+  border-radius: 4px;
+  padding: 6px;
+  font-family: 'Courier New', Courier, monospace;
+}

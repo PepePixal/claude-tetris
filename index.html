@@ -33,6 +33,10 @@
           <span class="label">LEVEL</span>
           <span class="value" id="level">1</span>
         </div>
+        <div class="panel-section">
+          <span class="label">COMBO</span>
+          <span class="value" id="combo">0</span>
+        </div>
 
         <div class="panel-section">
           <span class="label">NEXT</span>
@@ -49,6 +53,20 @@
             <li><kbd>P</kbd> pausa</li>
           </ul>
         </div>
+
+        <div class="panel-section">
+          <span class="label">TOP 5</span>
+          <ol id="leaderboard-list" class="leaderboard"></ol>
+        </div>
+        <div class="panel-section">
+          <span class="label">MEJOR COMBO</span>
+          <span class="value" id="best-combo">0</span>
+        </div>
+        <div class="panel-section">
+          <span class="label">MÁS LÍNEAS</span>
+          <span class="value" id="best-lines">0</span>
+        </div>
+        <button id="reset-records-btn" class="btn btn-secondary">Borrar récords</button>
       </aside>
     </div>
 
@@ -56,6 +74,10 @@
       <div class="overlay-box">
         <p id="overlay-title">GAME OVER</p>
         <p id="overlay-score"></p>
+        <form id="name-entry-form" class="hidden">
+          <input id="name-input" maxlength="3" placeholder="AAA" autocomplete="off" />
+          <button type="submit" class="btn">Guardar</button>
+        </form>
         <button id="restart-btn">Reiniciar</button>
       </div>
     </div>
